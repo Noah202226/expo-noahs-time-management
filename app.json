@@ -5,6 +5,14 @@
       "bundler": "metro"
     },
     "name": "noahs-time-management",
-    "slug": "noahs-time-management"
+    "slug": "noahs-time-management",
+    "extra": {
+      "eas": {
+        "projectId": "b23b7bab-35bc-4981-9ec1-bb7d6cbee842"
+      }
+    },
+    "android": {
+      "package": "com.xaxa21.noahstimemanagement"
+    }
   }
 }
