@@ -7,6 +7,7 @@ import { db } from "../utils/firebaseConfig";
 import RNDateTimePicker from "@react-native-community/datetimepicker";
 
 const MyModal = ({
+  add,
   visible,
   setVisible,
   taskName,
@@ -16,22 +17,24 @@ const MyModal = ({
 }) => {
   const [adding, setAdding] = React.useState(false);
   const saveTask = () => {
-    setAdding(true);
-    console.log("saving to firebase...");
+    // setAdding(true);
+    // console.log("saving to firebase...");
 
-    addDoc(collection(db, "taskToday"), {
-      taskName,
-      taskDescription,
-      added: serverTimestamp(),
-    })
-      .then(() => {
-        setVisible(false);
-        setTaskName("");
-        setTaskDescription("");
-        Alert.alert("Task added.");
-        setAdding(false);
-      })
-      .catch((e) => Alert.alert("Error", e));
+    // addDoc(collection(db, "taskToday"), {
+    //   taskName,
+    //   taskDescription,
+    //   added: serverTimestamp(),
+    // })
+    //   .then(() => {
+    //     setVisible(false);
+    //     setTaskName("");
+    //     setTaskDescription("");
+    //     Alert.alert("Task added.");
+    //     setAdding(false);
+    //   })
+    //   .catch((e) => Alert.alert("Error", e));
+
+    add(taskName, taskDescription);
   };
 
   return (

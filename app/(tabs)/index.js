@@ -4,23 +4,77 @@ import { useRouter } from "expo-router";
 
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../utils/firebaseConfig";
+
+// Expo Sqlite
+import { openDatabase } from "expo-sqlite";
+const sqlDB = openDatabase("noahsTime.db");
+
 import { StatusBar } from "expo-status-bar";
-import { Tab, TabView } from "@rneui/themed";
 import {
   ActivityIndicator,
-  Button,
   FAB,
   List,
   MD3Colors,
   SegmentedButtons,
-  Surface,
 } from "react-native-paper";
-import { TouchableOpacity } from "react-native-gesture-handler";
+
+// Components
 import MyModal from "../../components/Modal";
 import DeleteTaskModal from "../../components/DeleteTaskModal";
+import { TouchableOpacity } from "react-native-gesture-handler";
+import { BaseToast } from "react-native-toast-message";
+import Toast from "react-native-toast-message";
+import { ToastAndroid } from "react-native";
 
 const index = () => {
   const router = useRouter();
+
+  const useForceUpdate = () => {
+    const [value, setValue] = useState(0);
+    return [() => setValue(value + 1), value];
+  };
+
+  function Items({ done: doneHeading, onPressItem }) {
+    const [items, setItems] = useState(null);
+
+    useEffect(() => {
+      db.transaction((tx) => {
+        tx.executeSql(
+          `select * from items where done = ?;`,
+          [doneHeading ? 1 : 0],
+          (_, { rows: { _array } }) => setItems(_array)
+        );
+      });
+    }, []);
+
+    const heading = doneHeading ? "Completed" : "Todo";
+
+    if (items === null || items.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionHeading}>{heading}</Text>
+        {items.map(({ id, done, value }) => (
+          <TouchableOpacity
+            key={id}
+            onPress={() => onPressItem && onPressItem(id)}
+            style={{
+              backgroundColor: done ? "#1c9963" : "#fff",
+              borderColor: "#000",
+              borderWidth: 1,
+              padding: 8,
+            }}
+          >
+            <Text style={{ color: done ? "#fff" : "#000" }}>{value}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  }
+
+  const [forceUpdate, forceUpdateId] = useForceUpdate();
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [fetchingData, setFetchingData] = useState(true);
@@ -41,13 +95,28 @@ const index = () => {
 
   const colRef = collection(db, "taskToday");
   useEffect(() => {
-    onSnapshot(colRef, (snap) => {
-      setSchedules([]);
-      snap.docs.map((doc) => {
-        setSchedules((prev) => [...prev, { data: doc.data(), id: doc.id }]);
-      });
+    // onSnapshot(colRef, (snap) => {
+    //   setSchedules([]);
+    //   snap.docs.map((doc) => {
+    //     setSchedules((prev) => [...prev, { data: doc.data(), id: doc.id }]);
+    //   });
 
-      setFetchingData(false);
+    //   setFetchingData(false);
+    // });
+
+    // Sqlite
+    sqlDB.transaction((tx) => {
+      tx.executeSql(
+        "create table if not exists schedules (id integer primary key not null, done int, schedName text, schedDetails text);"
+      );
+
+      tx.executeSql("select * from schedules", [], (_, { rows }) => {
+        console.log(rows._array);
+        setSchedules([]);
+        setSchedules(rows._array);
+
+        setFetchingData(false);
+      });
     });
 
     const interval = setInterval(() => {
@@ -58,6 +127,71 @@ const index = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Sqlite functions
+  const add = (schedName, schedDetails) => {
+    // is text empty?
+    if (schedName === null || schedName === "") {
+      return false;
+    }
+
+    sqlDB.transaction(
+      (tx) => {
+        tx.executeSql(
+          "insert into schedules (done, schedName, schedDetails) values (0, ?, ?)",
+          [schedName, schedDetails]
+        );
+        tx.executeSql("select * from schedules", [], (_, { rows }) => {
+          console.log(rows._array);
+          setSchedules([]);
+          setSchedules(rows._array);
+
+          setFetchingData(false);
+          setVisible(false);
+        });
+      },
+      (e) => console.log(e),
+      () => {
+        console.log("adding successful.");
+
+        Toast.show({ type: "success", text1: "Added." });
+        ToastAndroid.show("Sched Added", ToastAndroid.LONG, ToastAndroid.TOP);
+
+        setTaskName("");
+        setTaskDescription("");
+      }
+    );
+  };
+
+  const deleteSched = (id) => {
+    sqlDB.transaction(
+      (tx) => {
+        tx.executeSql(`delete from schedules where id = ?;`, [id]);
+        tx.executeSql("select * from schedules", [], (_, { rows }) => {
+          console.log(rows._array);
+          setSchedules([]);
+          setSchedules(rows._array);
+        });
+      },
+      (e) => console.log("error" + e),
+      () => {
+        setFetchingData(false);
+        setvisible2(false);
+
+        Toast.show({
+          type: "success",
+          text1: "Toast Message",
+          text2: "This is a toast message!",
+          position: "bottom",
+          visibilityTime: 2000,
+          autoHide: true,
+        });
+
+        ToastAndroid.show("Sched Deleted", ToastAndroid.LONG, ToastAndroid.TOP);
+      }
+    );
+  };
+
+  // Date formating
   const formattedDate = currentTime.toDateString();
   const formattedTime = currentTime.toTimeString().slice(0, 8); // Extract the time part only
   return (
@@ -108,6 +242,8 @@ const index = () => {
           },
         ]}
       />
+
+      {/* Render items */}
       <View
         style={{
           flex: 1,
@@ -131,7 +267,7 @@ const index = () => {
             <TouchableOpacity
               onPress={() => {
                 setTaskIDToDelete(item?.id);
-                setTaskNameToDelete(item?.data?.taskName);
+                setTaskNameToDelete(item?.schedName);
                 setvisible2(true);
               }}
             >
@@ -151,8 +287,8 @@ const index = () => {
                       justifyContent: "space-between",
                     }}
                   >
-                    <Text>{item?.data?.taskName}</Text>
-                    <Text
+                    <Text>{item?.schedName}</Text>
+                    {/* <Text
                       style={{
                         alignItems: "flex-end",
                         textAlign: "right",
@@ -160,13 +296,13 @@ const index = () => {
                       }}
                     >
                       {item?.data?.added?.toDate().toLocaleString()}
-                    </Text>
+                    </Text> */}
                   </View>
                 </List.Subheader>
 
                 <List.Item
                   key={item.id}
-                  title={item.data.taskDescription}
+                  title={item?.schedDetails}
                   right={() => (
                     <List.Icon color={MD3Colors.tertiary70} icon="folder" />
                   )}
@@ -178,6 +314,7 @@ const index = () => {
       </View>
 
       <MyModal
+        add={add}
         visible={visible}
         setVisible={setVisible}
         taskName={taskName}
@@ -187,6 +324,7 @@ const index = () => {
       />
 
       <DeleteTaskModal
+        deleteSched={deleteSched}
         visible={visible2}
         setVisible={setvisible2}
         taskID={taskIDToDelete}
@@ -199,7 +337,6 @@ const index = () => {
         icon="plus"
         onPress={() => setVisible(!visible)}
       />
-      {/* </SafeAreaView> */}
     </View>
   );
 };

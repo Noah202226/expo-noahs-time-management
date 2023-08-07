@@ -4,24 +4,31 @@ import { Alert } from "react-native";
 import { Modal, Portal, Text, Button, TextInput } from "react-native-paper";
 import { db } from "../utils/firebaseConfig";
 
-const DeleteTaskModal = ({ visible, setVisible, taskID, taskName }) => {
+const DeleteTaskModal = ({
+  deleteSched,
+  visible,
+  setVisible,
+  taskID,
+  taskName,
+}) => {
   const [deleteLabel, setDeleteLabel] = React.useState("Delete");
   const [isDeleting, setIsDeleting] = React.useState(false);
   const deleteTask = () => {
-    setIsDeleting(true);
-    setDeleteLabel("Deleting task...");
+    // setIsDeleting(true);
+    // setDeleteLabel("Deleting task...");
     console.log(taskID, taskName);
-    console.log("deleting to firebase...");
+    console.log("deleting to sqlite...");
 
-    deleteDoc(doc(db, "taskToday", taskID))
-      .then(() => {
-        setVisible(false);
-        setIsDeleting(false);
-        setDeleteLabel("Delete");
+    // deleteDoc(doc(db, "taskToday", taskID))
+    //   .then(() => {
+    //     setVisible(false);
+    //     setIsDeleting(false);
+    //     setDeleteLabel("Delete");
 
-        Alert.alert("task deleted.");
-      })
-      .catch((e) => Alert.alert("Error", e));
+    //     Alert.alert("task deleted.");
+    //   })
+    //   .catch((e) => Alert.alert("Error", e));
+    deleteSched(taskID);
   };
   return (
     <Portal>
